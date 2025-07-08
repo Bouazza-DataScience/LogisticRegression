@@ -1,0 +1,81 @@
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+import datetime as dt
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import (confusion_matrix, ConfusionMatrixDisplay, 
+                             accuracy_score, precision_score, recall_score, f1_score, 
+                             roc_curve, roc_auc_score,
+                             classification_report, average_precision_score
+                             )
+                             
+
+#Charge the data
+df = pd.read_csv('C:/Users/HP ZORRO/Desktop/Data sets/bank-full.csv', sep = ';')
+#Exploring data and different variables
+df.head()
+df['contact'].unique()
+df.groupby(['y'])['balance'].mean()
+df.groupby(['previous'])['y'].value_counts()
+#check missing values and other features as types, dimensions and other
+df.isna().sum()
+df.shape
+#df.info()
+#Create a data subset to more effeciency
+df_subset = df.drop(['age','pdays','balance'], axis=1)
+#Tansform columns for more model effenciency
+df_subset['duration'] = np.where(df['duration'] > 0, np.log1p(df['duration']), 0)
+#Check new data
+df_subset.head()
+#Target Variable
+df_subset['y'] = np.where(df['y'] == 'no', 0, 1) 
+#Define my two variables for train and test the model 
+X = df_subset.drop('y', axis=1)
+y = df_subset['y']
+#get_dummies
+X_encoded = pd.get_dummies(X, drop_first=True)
+#Split data to train and test samples
+X_train, X_test, y_train, y_test = train_test_split(X_encoded, y, test_size=0.25, random_state=42)
+##Create the Logistic Regression model
+logit_reg = LogisticRegression(max_iter=1000, class_weight='balanced')
+model = logit_reg.fit(X_train,y_train)
+y_pred = model.predict(X_test)
+y_prob = model.predict_proba(X_test)[:,1]
+##Logistic Regression metrics
+#Confusion Matrix and its dispay metric
+conf_matrix = confusion_matrix(y_test, y_pred)
+fig = ConfusionMatrixDisplay(confusion_matrix = conf_matrix)
+fig.plot(cmap=plt.cm.Blues)
+plt.show()
+#Accuray, precion, recall and f1 scores
+def logistic_metrics(a, b):
+    accuracy = accuracy_score(a, b)
+    precision = precision_score(a, b)
+    recall = recall_score(a, b)
+    f1 = f1_score(a, b)
+    roc_auc = roc_auc_score(y_test, y_prob)
+    aps = average_precision_score(y_test, y_prob)
+    class_report = classification_report(y_test, y_pred)
+    print(f"Accuracy : {accuracy:.2f}\nPrecision : {precision:.2f}\nRecall : {recall:.2f}\nf1_score : {f1:.2f}\n",
+          f"ROC & AUC score : {roc_auc:.2f}\n",
+          f"Average Precision Score : {aps:.2f}\n")
+    print("Classification Report :\n", class_report)
+logistic_metrics(y_test, y_pred)
+# Calcul des courbes ROC
+fpr, tpr, thresholds = roc_curve(y_test, y_prob)
+auc = roc_auc_score(y_test, y_prob)
+
+# Tracer la courbe ROC
+plt.figure(figsize=(8, 6))
+plt.plot(fpr, tpr, label=f"ROC Curve (AUC = {auc:.2f})", color="blue")
+plt.plot([0, 1], [0, 1], "k--", label="Random Classifier")
+plt.xlabel("Taux de faux positifs (FPR)")
+plt.ylabel("Taux de vrais positifs (TPR)")
+plt.title("Courbe ROC")
+plt.legend()
+plt.grid()
+plt.show()
+
+#Add descreptive 
